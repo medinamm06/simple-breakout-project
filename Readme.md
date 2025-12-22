@@ -1,16 +1,26 @@
-# Simple Breakout
+This project extends traditional Breakout gameplay with a "Space Invasion" mechanic, where level structures descend dynamically, increasing difficulty. The game follows strict procedural decomposition across multiple modules.
+**Key Features**  
+Core Systems
+State Management: Fully implemented Menu, Instruction, Playing, Pause, Victory, and Game Over states.
 
-![Breakout](https://i.postimg.cc/FzBNx6FK/Screenshot-20251103-175907.png)
+Level Design: Five progressive levels (9x13 grid) including complex "Maze" and "Final Wall" configurations.
 
----
+Lives & Game Over: Integrated health system with 3 lives and automated loss conditions (ball exit or block invasion).
+**Controls**  
+Action,Input
+Move Paddle,A / D or Arrow Keys
+Pause Game,ESC
+Menu Navigation,Up / Down Arrows
+Confirm Selection,ENTER
+**Project Architecture**  
+breakout.cpp: Core entry point and game loop.
 
-The primary goal of this project is to build a simple [Breakout](https://en.wikipedia.org/wiki/Breakout_(video_game)) game written in C++ using the [raylib](https://www.raylib.com) graphics library. In this game, the player controls a paddle that keeps the ball within the level, which destroys blocks upon contact. The objective of the game is to navigate through a series of levels, cleaning all levels of blocks.
+game.h: Global constants, level data, and shared state definitions.
 
-The game should adhere to the best structured and procedural programming principles. You should strive to effectively utilize structured programming constructs such as selection constructs and loops. Additionally, endeavor to achieve procedural decomposition of your code into functions. Ensure consistent formatting in your code, adhering to coding style best practices, including proper naming, indentation, use of white spaces, blank lines, and comments.
+level.cpp/h: Coordinate mapping and collision detection logic.
 
-Be creative, and ensure to implement all the requirements outlined below in your project.
+assets.cpp/h: Resource management for textures, sounds, and fonts.
 
----
 
 ## Core Requirements
 
