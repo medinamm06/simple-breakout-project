@@ -3,8 +3,9 @@
 
 #include "raylib.h"
 
-inline constexpr Vector2 paddle_size = { 3.0f, 1.0f };
-inline constexpr float paddle_speed = 0.1f;
+// Убрали constexpr, чтобы бонус мог увеличивать x
+inline Vector2 paddle_size = { 3.0f, 1.0f };
+inline constexpr float paddle_speed = 0.15f; // Можно немного ускорить для интереса
 
 inline Vector2 paddle_pos;
 

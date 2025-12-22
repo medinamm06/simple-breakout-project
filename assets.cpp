@@ -14,11 +14,11 @@ void unload_fonts()
 
 void load_textures()
 {
-    wall_texture = LoadTexture("data/images/wall.png");
+    wall_texture = LoadTexture("data/images/wall milkway.png");
     void_texture = LoadTexture("data/images/void.png");
-    block_texture = LoadTexture("data/images/block.png");
-    paddle_texture = LoadTexture("data/images/paddle.png");
-    ball_sprite = load_sprite("data/images/ball/ball", ".png", 8, true, 10);
+    block_texture = LoadTexture("data/images/metheor block.png");
+    paddle_texture = LoadTexture("data/images/paddle lol.png");
+    ball_sprite = load_sprite("data/images/ball/star_block", ".png", 5, true, 1);
 }
 
 void unload_textures()
@@ -28,6 +28,7 @@ void unload_textures()
     UnloadTexture(block_texture);
     UnloadTexture(paddle_texture);
     unload_sprite(ball_sprite);
+    ball_sprite.frame_count = 3;
 }
 
 void load_sounds()
