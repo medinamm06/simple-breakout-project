@@ -6,14 +6,27 @@
 #include "paddle.h"
 #include "raylib.h"
 #include "rlgl.h"
-Texture2D backgroundTexture; // <- Добавь вот эту строку
+
+struct Particle {
+    Vector2 position;
+    Vector2 velocity;
+    Color color;
+    float alpha;
+    float size;
+    bool active;
+};
+
+const int MAX_PARTICLES = 800;
+Particle particles[MAX_PARTICLES];
+float fireworkTimer = 0.0f;
+Texture2D backgroundTexture;
 GameState currentState = MENU;
 int menuSelection = 0;
 float blockMoveTimer = 0.0f;
 const float blockMoveInterval = 10.0f;
 float invasionTimer = 0.0f;
-float invasionSpeed = 5.0f; // Каждые 5 секунд блоки опускаются ниже
-float levelYOffset = 0.0f;  // На сколько единиц сетки опустился уровень
+float invasionSpeed = 5.0f;
+float levelYOffset = 0.0f;
 
 void update_powerups() {
     for (int i = 0; i < 10; i++) {
@@ -22,17 +35,16 @@ void update_powerups() {
 
             if (is_colliding_with_paddle(power_ups[i].position, ball_size)) {
                 power_ups[i].active = false;
-                // PlaySound(bonus_sound); // Можно раскомментировать, если есть звук
+
 
                 if (power_ups[i].type == EXTEND_PADDLE) {
-                    paddle_size.x += 0.5f; // Увеличиваем ширину ракетки
+                    paddle_size.x += 0.5f;
                 }
                 if (power_ups[i].type == EXTRA_LIFE) {
-                    lives++; // Добавляем жизнь
+                    lives++;
                 }
             }
 
-            // Удаляем бонус, если он улетел за нижнюю границу
             if (power_ups[i].position.y > 25.0f) power_ups[i].active = false;
         }
     }
@@ -41,42 +53,34 @@ void update_powerups() {
 void draw_powerups() {
     for (int i = 0; i < 10; i++) {
         if (power_ups[i].active) {
-            // 1. Вычисляем центр (добавляем +20, чтобы было в центре клетки 40x40)
+
             Vector2 screenPos = {
                 power_ups[i].position.x * 40.0f + 20.0f,
                 power_ups[i].position.y * 40.0f + 20.0f
             };
 
             Color mainColor = (power_ups[i].type == EXTEND_PADDLE) ? BLUE : GREEN;
-            Color glowColor = Fade(WHITE, 0.5f); // Полупрозрачный белый для свечения
+            Color glowColor = Fade(WHITE, 0.5f);
 
-            // 2. Рисуем "свечение" (внешний круг побольше)
             DrawCircleV(screenPos, 15, glowColor);
 
-            // 3. Рисуем основное тело бонуса
             DrawCircleV(screenPos, 12, mainColor);
 
-            // 4. Рисуем "блик" (маленький светлый кружок сверху слева для объема)
             DrawCircle(screenPos.x - 4, screenPos.y - 4, 4, Fade(WHITE, 0.7f));
 
-            // 5. Рисуем ИКОНКУ вместо текста
             if (power_ups[i].type == EXTEND_PADDLE) {
-                // Рисуем символ расширения: <->
-                // Горизонтальная палка
                 DrawRectangle(screenPos.x - 6, screenPos.y - 1, 12, 2, WHITE);
-                // Левая стрелка (треугольник)
+
                 DrawTriangle(
                     {screenPos.x - 8, screenPos.y},
                     {screenPos.x - 4, screenPos.y - 3},
                     {screenPos.x - 4, screenPos.y + 3}, WHITE);
-                // Правая стрелка (треугольник)
                 DrawTriangle(
                     {screenPos.x + 8, screenPos.y},
                     {screenPos.x + 4, screenPos.y + 3},
                     {screenPos.x + 4, screenPos.y - 3}, WHITE);
             }
             else if (power_ups[i].type == EXTRA_LIFE) {
-                // Рисуем плюсик: +
                 DrawRectangle(screenPos.x - 6, screenPos.y - 2, 12, 4, WHITE); // Горизонтальная часть
                 DrawRectangle(screenPos.x - 2, screenPos.y - 6, 4, 12, WHITE); // Вертикальная часть
             }
@@ -84,7 +88,67 @@ void draw_powerups() {
     }
 }
 int pauseSelection = 0;
-// --- ГЛАВНАЯ ЛОГИКА ОБНОВЛЕНИЯ ---
+
+
+void InitFireworks() {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        particles[i].active = false;
+    }
+    fireworkTimer = 0.0f;
+}
+
+void SpawnFireworkBurst(Vector2 center) {
+    Color colors[] = { GOLD, ORANGE, PINK, SKYBLUE, LIME, VIOLET };
+    Color burstColor = colors[GetRandomValue(0, 5)];
+
+    int particlesCreated = 0;
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (!particles[i].active) {
+            particles[i].active = true;
+            particles[i].position = center;
+
+            float angle = GetRandomValue(0, 360) * DEG2RAD;
+            float speed = (float)GetRandomValue(20, 70) / 10.0f;
+
+            particles[i].velocity = { cosf(angle) * speed, sinf(angle) * speed };
+            particles[i].color = burstColor;
+            particles[i].alpha = 1.0f;
+            particles[i].size = (float)GetRandomValue(2, 5);
+
+            particlesCreated++;
+            if (particlesCreated >= 100) break;
+        }
+    }
+}
+
+void UpdateFireworks() {
+    fireworkTimer += GetFrameTime();
+    if (fireworkTimer > 0.5f) {
+        SpawnFireworkBurst({ (float)GetRandomValue(100, 1180), (float)GetRandomValue(100, 400) });
+        fireworkTimer = 0.0f;
+    }
+
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (!particles[i].active) continue;
+
+        particles[i].position.x += particles[i].velocity.x;
+        particles[i].position.y += particles[i].velocity.y;
+
+        particles[i].velocity.y += 0.05f;
+
+        particles[i].alpha -= 0.015f;
+
+        if (particles[i].alpha <= 0.0f) particles[i].active = false;
+    }
+}
+
+void DrawFireworks() {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (!particles[i].active) continue;
+        DrawCircleV(particles[i].position, particles[i].size, Fade(particles[i].color, particles[i].alpha));
+    }
+}
+
 void update() {
 switch (currentState) {
         case MENU:
@@ -113,7 +177,6 @@ case PLAYING:
         levelYOffset += 0.5f;
         invasionTimer = 0.0f;
 
-        // ЭФФЕКТ ТРЯСКИ (Визуально дергаем экран вверх-вниз при шаге блоков)
         rlTranslatef(0, (float)GetRandomValue(-5, 5), 0);
 
         if (invasionSpeed > 1.0f) invasionSpeed -= 0.1f;
@@ -123,32 +186,27 @@ case PLAYING:
         pauseSelection = 0;
     }
 
-    // 1. Движение ракетки
     if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) move_paddle(-paddle_speed);
     if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) move_paddle(paddle_speed);
 
-    // 2. ЛОГИКА ВТОРЖЕНИЯ
+
 invasionTimer += GetFrameTime();
 if (invasionTimer >= invasionSpeed) {
     levelYOffset += 0.5f;
     invasionTimer = 0.0f;
 
-    // --- ПРОВЕРКА УЛЕТЕВШИХ БЛОКОВ ---
     for (int r = 0; r < current_level.rows; r++) {
         for (int c = 0; c < current_level.columns; c++) {
             if (get_level_cell(r, c) == BLOCKS) {
-                // Если блок ушел ниже 14-й строки (ниже ракетки)
                 if ((float)r + levelYOffset > 14.0f) {
-                    set_level_cell(r, c, VOID); // Считаем его уничтоженным
-                    current_level_blocks--;     // Уменьшаем счетчик, чтобы уровень завершился
+                    set_level_cell(r, c, VOID);
+                    current_level_blocks--;
                 }
             }
         }
     }
-    // --------------------------------
 }
-    // 3. Проверка: не коснулись ли блоки ракетки?
-    // Если блоки опустились ниже 18.0f (примерная высота ракетки), то конец
+
     if (levelYOffset > 15.0f) {
         currentState = GAMEOVER;
     }
@@ -156,7 +214,6 @@ if (invasionTimer >= invasionSpeed) {
     move_ball();
     update_powerups();
 
-    // 4. Проверка проигрыша мяча
     if (!is_ball_inside_level()) {
         lives--;
         PlaySound(lose_sound);
@@ -166,13 +223,14 @@ if (invasionTimer >= invasionSpeed) {
             spawn_ball();
         }
     }
-    // 5. Проверка победы
     else if (current_level_blocks == 0) {
-        if (current_level_index >= 2) {
+        if (current_level_index >= 4) {
+            InitFireworks();
             currentState = VICTORY;
         } else {
-            levelYOffset = 0.0f; // Сброс смещения для нового уровня
-            load_level(1);
+            levelYOffset = 0.0f;
+            current_level_index++;
+            load_level();
             spawn_ball();
             PlaySound(win_sound);
         }
@@ -181,41 +239,37 @@ if (invasionTimer >= invasionSpeed) {
 
 
         case PAUSED:
-            // --- НОВАЯ ЛОГИКА ПАУЗЫ ---
+
             if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_UP)) {
-                pauseSelection = (pauseSelection + 1) % 2; // Переключаем 0 или 1
+                pauseSelection = (pauseSelection + 1) % 2;
             }
 
             if (IsKeyPressed(KEY_ENTER)) {
-                if (pauseSelection == 0) currentState = PLAYING; // Продолжить
-                else currentState = MENU;                       // В меню
+                if (pauseSelection == 0) currentState = PLAYING;
+                else currentState = MENU;
             }
 
-            if (IsKeyPressed(KEY_ESCAPE)) currentState = PLAYING; // Быстрый выход из паузы
+            if (IsKeyPressed(KEY_ESCAPE)) currentState = PLAYING;
             break;
 
         case GAMEOVER:
         case VICTORY:
+         UpdateFireworks();
             if (IsKeyPressed(KEY_ENTER)) currentState = MENU;
             break;
     };
     }
 
 
-// --- ГЛАВНАЯ ЛОГИКА ОТРИСОВКИ ---
 void draw() {
     Color bgColor = WHITE;
 
-    // Начинаем паниковать, когда блоки прошли больше 10 клеток (из 15 допустимых)
     if (levelYOffset > 10.0f) {
-        // Вычисляем интенсивность (от 0.0 до 1.0)
         float dangerLevel = (levelYOffset - 10.0f) / 5.0f;
 
-        // Частота пульсации (чем ближе блоки, тем быстрее пульс)
         float speed = 2.0f + (dangerLevel * 10.0f);
-        float pulse = (sinf(GetTime() * speed) + 1.0f) / 2.0f; // Значение от 0 до 1
+        float pulse = (sinf(GetTime() * speed) + 1.0f) / 2.0f;
 
-        // Смешиваем белый с красным в зависимости от пульса и уровня опасности
         unsigned char redTint = (unsigned char)(255 * dangerLevel * pulse);
         bgColor = { 255, (unsigned char)(255 - redTint), (unsigned char)(255 - redTint), 255 };
     }
@@ -225,7 +279,7 @@ void draw() {
     backgroundTexture,
     { 0.0f, 0.0f, (float)backgroundTexture.width, (float)backgroundTexture.height },
     { 0.0f, 0.0f, 1280.0f, 720.0f },
-    { 0.0f, 0.0f }, 0.0f, bgColor // Используем вычисленный цвет
+    { 0.0f, 0.0f }, 0.0f, bgColor
 );
 
 
@@ -248,7 +302,7 @@ void draw() {
 
         case PLAYING:
         rlPushMatrix();
-        rlTranslatef(0, levelYOffset * 40.0f, 0); // Смещаем всю сетку блоков вниз
+        rlTranslatef(0, levelYOffset * 40.0f, 0);
         draw_level();
         rlPopMatrix();
 
@@ -256,7 +310,6 @@ void draw() {
             draw_ball();
             draw_powerups();
             draw_ui();
-            // Отображение жизней
             DrawText(TextFormat("LIVES: %i", lives), 20, 20, 25, RED);
             break;
 
@@ -276,12 +329,21 @@ void draw() {
             DrawText("GAME OVER", 480, 300, 60, WHITE);
             DrawText("Press ENTER for Menu", 510, 400, 25, LIGHTGRAY);
             break;
+    case VICTORY:
+        DrawRectangle(0, 0, 1280, 720, Fade(BLACK, 0.85f));
 
-        case VICTORY:
-            DrawRectangle(0, 0, 1280, 720, DARKBLUE);
-            DrawText("YOU WIN!", 500, 300, 60, GOLD);
-            DrawText("Press ENTER for Menu", 510, 400, 25, WHITE);
-            break;
+        DrawFireworks();
+
+        DrawText("VICTORY!", 395, 255, 100, Fade(BLACK, 0.5f));
+        DrawText("YOU SAVED THE GALAXY!", 355, 385, 40, Fade(BLACK, 0.5f));
+
+        DrawText("VICTORY!", 390, 250, 100, GOLD);
+        DrawText("YOU SAVED THE GALAXY!", 350, 380, 40, SKYBLUE);
+
+        if ((int)(GetTime() * 2) % 2 == 0) {
+            DrawText("Press ENTER for Menu", 510, 500, 25, WHITE);
+        }
+        break;
     }
 
     EndDrawing();
